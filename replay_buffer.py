@@ -146,7 +146,7 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
     epsilon = 1e-8  # small amount to avoid zero priority
     alpha = 0.6  # [0~1] convert the importance of TD error to priority
     beta = 0.4  # importance-sampling, from initial value increasing to 1
-    beta_increment_per_sampling = 1e-8
+    beta_increment_per_sampling = 1e-6
     abs_err_upper = 1.  # clipped abs error
 
     def __init__(self, checkpoint,share_storage):
@@ -180,7 +180,23 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
             prob = p / self.tree.total_p
             ISWeights[i, 0] = np.power(prob/min_prob, -self.beta)
             b_idx[i], b_memory[i, 0] = idx, np.array(data,dtype=object)
-        return b_idx, b_memory, ISWeights
+        
+        # return b_idx, b_memory, ISWeights
+        
+        batch_obs=[]
+        batch_act=[]
+        batch_reward=[]
+        batch_obs_=[]
+        batch_done=[]
+        for i in range(n):
+            batch_obs.append(b_memory[i,0][0])
+            batch_act.append(b_memory[i,0][1])
+            batch_reward.append(b_memory[i,0][2])
+            batch_obs_.append(b_memory[i,0][3])
+            batch_done.append(b_memory[i,0][4])
+
+        return (b_idx, batch_obs, batch_act, batch_reward, batch_obs_, batch_done, ISWeights)
+        
 
     def batch_update(self, tree_idx, abs_errors):
         abs_errors=copy.deepcopy(abs_errors)

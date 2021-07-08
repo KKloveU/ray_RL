@@ -1,83 +1,97 @@
+from numpy.core.numeric import outer
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+class NoisyFactorizedLinear(nn.Linear):
+    """
+    NoisyNet layer with factorized gaussian noise
+    N.B. nn.Linear already initializes weight and bias to
+    """
+    def __init__(self, in_features, out_features, sigma_zero=0.4, bias=True):
+        super(NoisyFactorizedLinear, self).__init__(in_features, out_features, bias=bias)
+        sigma_init = sigma_zero / math.sqrt(in_features)
+        self.sigma_weight = nn.Parameter(torch.Tensor(out_features, in_features).fill_(sigma_init))
+        self.register_buffer("epsilon_input", torch.zeros(1, in_features))
+        self.register_buffer("epsilon_output", torch.zeros(out_features, 1))
+        if bias:
+            self.sigma_bias = nn.Parameter(torch.Tensor(out_features).fill_(sigma_init))
 
-class NoisyLinear(nn.Module):
+    def forward(self, input):
+        bias = self.bias
+        func = lambda x: torch.sign(x) * torch.sqrt(torch.abs(x))
 
-    def __init__(self, num_in, num_out, is_training=True):
-        super(NoisyLinear, self).__init__()
-        self.num_in = num_in
-        self.num_out = num_out
-        self.is_training = is_training
+        with torch.no_grad():
+            torch.randn(self.epsilon_input.size(), out=self.epsilon_input)
+            torch.randn(self.epsilon_output.size(), out=self.epsilon_output)
+            eps_in = func(self.epsilon_input)
+            eps_out = func(self.epsilon_output)
+            noise_v = torch.mul(eps_in, eps_out).detach()
+        if bias is not None:
+            bias = bias + self.sigma_bias * eps_out.t()
+        return F.linear(input, self.weight + self.sigma_weight * noise_v, bias)
 
-        self.mu_weight = nn.Parameter(torch.FloatTensor(num_out, num_in))
-        self.mu_bias = nn.Parameter(torch.FloatTensor(num_out))
-        self.sigma_weight = nn.Parameter(torch.FloatTensor(num_out, num_in))
-        self.sigma_bias = nn.Parameter(torch.FloatTensor(num_out))
-        self.register_buffer("epsilon_weight", torch.FloatTensor(num_out, num_in)) 
-        self.register_buffer("epsilon_bias", torch.FloatTensor(num_out))
+class Atten(nn.Module):
+    def __init__(self):
+        super().__init__()
+        in_chanel=64
+        out_chanel=64
+        self.gamma=0.9
 
-        self.reset_parameters()
-        self.reset_noise()
-
-    def forward(self, x): 
-        self.reset_noise()
-
-        if self.is_training:
-            weight = self.mu_weight + self.sigma_weight.mul(self.epsilon_weight.clone()) 
-            bias = self.mu_bias + self.sigma_bias.mul(self.epsilon_bias.clone())
-        else:
-            weight = self.mu_weight
-            buas = self.mu_bias
-
-        y = F.linear(x, weight, bias)
+        self.query_conv=nn.Conv2d(in_chanel,out_chanel,3,1,(1,1))
+        self.key_conv=nn.Conv2d(in_chanel,out_chanel,3,1,(1,1))
+        self.value_conv=nn.Conv2d(in_chanel,out_chanel,3,1,(1,1))
         
-        return y
+    def forward(self,x):
+        query=self.query_conv(x)
 
-    def reset_parameters(self):
-        std = math.sqrt(3 / self.num_in)
-        self.mu_weight.data.uniform_(-std, std)
-        self.mu_bias.data.uniform_(-std,std)
+        key=self.key_conv(x)
 
-        self.sigma_weight.data.fill_(0.017)
-        self.sigma_bias.data.fill_(0.017)
+        atten_logit=key*query.permute(0,1,3,2)
+        atten=F.softmax(atten_logit,dim=1)
 
-    def reset_noise(self):
-        self.epsilon_weight.data.normal_()
-        self.epsilon_bias.data.normal_()
+        value=self.value_conv(x)
+        
+        out=atten*value
+        out=self.gamma*out+x
+        return out
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+
         self.features = nn.Sequential(
             nn.Conv2d(4, 32, kernel_size=8, stride=4),
-            nn.Dropout(0.2),
             nn.ReLU(),
+            # nn.Dropout(0.2),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
-            nn.Dropout(0.2),
+
+            # nn.Dropout(0.2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
-            nn.Dropout(0.2),
-            nn.ReLU()
+            nn.ReLU(),
+            Atten(),
+            # nn.Dropout(0.2),
+            
         )
 
         self.advantage = nn.Sequential(
+            # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
             nn.Dropout(0.2),
-            # NoisyLinear(3136, 512),
             nn.ReLU(),
-            nn.Linear(512, 3),
-            # NoisyLinear(512, 3)
+            # NoisyFactorizedLinear(512,3),
+            nn.Linear(512, 3)
         )
 
         self.value = nn.Sequential(
+            # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
             nn.Dropout(0.2),
-            # NoisyLinear(3136, 512),
+
             nn.ReLU(),
+            # NoisyFactorizedLinear(512, 1),
             nn.Linear(512, 1)
-            # NoisyLinear(512, 1)
         )
 
 

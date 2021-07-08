@@ -6,11 +6,10 @@ import torch
 class SharedStorage:
     def __init__(self,checkpoint) -> None:
         self.current_checkpoint=copy.deepcopy(checkpoint)
+        self.path='./model_checkpoint/'+self.current_checkpoint["game"]+'_model'
 
-    def save_checkpoint(self,path=None):
-        if not path:
-            path='./model_checkpoint/model'
-        torch.save(self.current_checkpoint,path)
+    def save_checkpoint(self):
+        torch.save(self.current_checkpoint,self.path)
     
     def get_checkpoint(self):
         return copy.deepcopy(self.current_checkpoint)
