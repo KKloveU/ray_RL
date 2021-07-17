@@ -29,7 +29,7 @@ class Trainer:
  
         print('trainer init done')
         
-    def continous_update_weights(self,game_history):
+    def continous_update_weights(self):
         pass
 
     def update_weights(self,game_history):
