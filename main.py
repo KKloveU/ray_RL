@@ -10,7 +10,7 @@ import models
 import copy
 import time
 
-NUM_WORKER=5
+NUM_WORKER=3
 game_name="Pong"
 path_file=r"./model_checkpoint/"+game_name+"_model"
 
@@ -40,7 +40,7 @@ if __name__=="__main__":
         "batch_size":128,
         "gamma":0.99,
         "epsilon":1,
-        "replace_target_iter":100,
+        "model_save_iter":100,
         "tau":0.002,
         "max_len_step":10,
         "action_list":[0,2,3]
@@ -72,7 +72,6 @@ if __name__=="__main__":
     # start works
     [worker.continous_self_play.remote(test_mode=False) 
                                         for worker in self_play_workers]
-    # training_worker.continous_update_weights.remote(share_storage_worker)
 
     while True:
         time.sleep(5)

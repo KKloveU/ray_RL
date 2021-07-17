@@ -20,7 +20,7 @@ class Trainer:
         self.tau=checkpoint["tau"]
         self.batch_size=checkpoint['batch_size']
         self.gamma=checkpoint['gamma']
-        self.replace_target_iter=checkpoint['replace_target_iter']
+        self.model_save_iter=checkpoint['model_save_iter']
         self.share_storage=share_storage
 
         self.learn_step_counter=1
@@ -40,7 +40,7 @@ class Trainer:
         self.optimizer.step()
 
         self.share_storage.set_info.remote({"weights": copy.deepcopy(self.model.get_weights())})
-        self.learn_step_counter=self.learn_step_counter%self.replace_target_iter
+        self.learn_step_counter=self.learn_step_counter%self.model_save_iter
         if self.learn_step_counter==0:
             self.share_storage.save_checkpoint.remote()
         self.learn_step_counter+=1
