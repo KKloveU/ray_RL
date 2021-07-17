@@ -12,7 +12,7 @@ import time
 
 NUM_WORKER=3
 game_name="Pong"
-path_file=r"./model_checkpoint/"+game_name+"_model"
+path_file=r"./model_checkpoint/"+game_name+".model"
 
 class ModelLoader:
     # Trick to force DataParallel to stay on CPU to get weights on CPU even if there is a GPU
