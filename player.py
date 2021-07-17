@@ -65,11 +65,12 @@ class Player:
                     live = info["ale.lives"]
                     self.game.step(1)
                     fake_done = True
-                game_history.save_transition(
-                    np.array(obs), action_index, reward, np.array(obs_), fake_done)
-                if done or step % self.update_memory_iter == 0:
-                    self.replay_buffer.store_memory.remote(game_history)
-                    game_history.clear_memory()
+                if not self.test_mode:
+                    game_history.save_transition(
+                        np.array(obs), action_index, reward, np.array(obs_), fake_done)
+                    if done or step % self.update_memory_iter == 0:
+                        self.replay_buffer.store_memory.remote(game_history)
+                        game_history.clear_memory()
                 obs = obs_
                 ep_r += reward
                 step += 1
