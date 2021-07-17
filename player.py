@@ -76,7 +76,7 @@ class Player:
                 step += 1
 
             if self.test_mode:
-                print(self.palyed_game, ep_r, self.epsilon)
+                print(self.palyed_game, ep_r)
                 self.epr_writer.write(str(ep_r)+'\n')
                 self.epr_writer.flush()
                 self.palyed_game += 1
