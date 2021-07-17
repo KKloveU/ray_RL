@@ -19,8 +19,6 @@ class Trainer:
         
         self.training_step=checkpoint['training_step']
         self.trained_step=checkpoint['max_training_step']
-        self.tau=checkpoint["tau"]
-        self.batch_size=checkpoint['batch_size']
         self.gamma=checkpoint['gamma']
         self.model_save_iter=checkpoint['model_save_iter']
         self.memory_update_iter=checkpoint['memory_update_iter']
