@@ -7,59 +7,63 @@ import torch
 import numpy as np
 import torch.nn as nn
 import time
-from torch.utils.tensorboard import SummaryWriter
-# one GPU 0.103
-# two GPU 0.067
 
 @ray.remote
 class Trainer:
-    def __init__(self,checkpoint) -> None:
-        self.eval_model=nn.DataParallel(models.Model())
-        self.target_model=nn.DataParallel(models.Model())
-        # self.eval_model=models.Model()
-        # self.target_model=models.Model()
-        self.eval_model.module.set_weights(copy.deepcopy(checkpoint["weights"]))
-        self.target_model.module.set_weights(copy.deepcopy(checkpoint["weights"]))
+    def __init__(self,checkpoint,replay_buffer,share_storage) -> None:
+        # self.eval_model=nn.DataParallel(models.Model())       #multi-GPU
+        # self.target_model=nn.DataParallel(models.Model())     #multi-GPU
+        self.eval_model=models.Model()
+        self.target_model=models.Model()
+        # self.eval_model.module.set_weights(copy.deepcopy(checkpoint["weights"]))      #multi-GPU
+        # self.target_model.module.set_weights(copy.deepcopy(checkpoint["weights"]))    #multi-GPU
+        self.eval_model.set_weights(copy.deepcopy(checkpoint["weights"]))
+        self.target_model.set_weights(copy.deepcopy(checkpoint["weights"]))
+
         self.eval_model.cuda()
         self.target_model.cuda()
-        self.writer=SummaryWriter('./log')
+
+        self.replay_buffer=replay_buffer
+        self.share_storage=share_storage
         self.gamma=checkpoint['gamma']
+        self.tau=checkpoint["tau"]
+        self.batch_size=checkpoint['batch_size']
         self.training_step=checkpoint['training_step']
         self.trained_step=checkpoint['max_training_step']
         self.replace_target_iter=checkpoint['replace_target_iter']
-        self.tau=checkpoint["tau"]
-        self.batch_size=checkpoint['batch_size']
+
+        self.flag=True
         self.learn_step_counter=1
         self.loss_fn=torch.nn.SmoothL1Loss(reduction="none")
-        self.flag=True
         self.optimizer=torch.optim.Adam(self.eval_model.parameters(),lr=checkpoint['lr'])
         print('trainer init done')
         
-    def continous_update_weights(self,share_storage,replay_buffer):
+    def continous_update_weights(self):
         print('wait train')
-        while not ray.get(share_storage.get_info.remote('start_training')):
+        while not ray.get(self.share_storage.get_info.remote('start_training')):
             time.sleep(0.1)
         print('start train-----------------------------------------------------')
         
-        batch=replay_buffer.get_batch.remote(self.batch_size)
+        batch=self.replay_buffer.get_batch.remote(self.batch_size)
         while True:
             if self.flag:
-                batch_=replay_buffer.get_batch.remote(self.batch_size)
+                batch_=self.replay_buffer.get_batch.remote(self.batch_size)
                 batch=ray.get(batch)
                 tree_idx,abs_error=self.update_weights(batch)
                 self.flag = not self.flag
 
             else:
-                batch=replay_buffer.get_batch.remote(self.batch_size)
+                batch=self.replay_buffer.get_batch.remote(self.batch_size)
                 batch_=ray.get(batch_)
                 tree_idx,abs_error=self.update_weights(batch_)
                 self.flag = not self.flag
-            replay_buffer.batch_update.remote(tree_idx,abs_error)
+            self.replay_buffer.batch_update.remote(tree_idx,abs_error)
 
             self.learn_step_counter=self.learn_step_counter%self.replace_target_iter
             if self.learn_step_counter==0:
-                share_storage.set_info.remote({"weights": copy.deepcopy(self.eval_model.module.get_weights())})
-                share_storage.save_checkpoint.remote()
+                # self.share_storage.set_info.remote({"weights": copy.deepcopy(self.eval_model.module.get_weights())})
+                self.share_storage.set_info.remote({"weights": copy.deepcopy(self.eval_model.get_weights())})
+                self.share_storage.save_checkpoint.remote()
                 print('net_replace!!!!')
 
             for target_param, param in zip(self.target_model.parameters(), self.eval_model.parameters()):
@@ -68,8 +72,7 @@ class Trainer:
             self.learn_step_counter+=1
 
     def update_weights(self,batch):
-
-        tree_idx, batch_obs, batch_act, batch_reward, batch_obs_, batch_done, ISWeights=batch
+        tree_idx, batch_obs, batch_act, batch_reward, batch_obs_, batch_done, ISWeights=copy.deepcopy(batch)
         batch_obs=torch.FloatTensor(np.stack(batch_obs)).permute(0,3,1,2).cuda()
         batch_act=torch.LongTensor(np.vstack(batch_act)).cuda()
         batch_reward=torch.FloatTensor(np.vstack(batch_reward)).cuda()
@@ -84,7 +87,6 @@ class Trainer:
         q_target=torch.where(batch_done,batch_reward,q_target)
 
         loss = (batch_weight * self.loss_fn(q_eval,q_target.detach())).mean()
-        self.writer.add_scalar('loss',loss.data.item(),walltime=True)
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.eval_model.parameters():                
