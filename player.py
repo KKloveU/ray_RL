@@ -25,9 +25,9 @@ class Player:
         self.model = Model().cuda()
         self.model.set_weights(checkpoint["weights"])
 
-        self.game_history = GameHistory()
-
         self.test_mode = test_mode
+        if not self.test_mode:
+            self.game_history = GameHistory()
         if self.test_mode:
             self.palyed_game = 0
             self.epr_writer = open('./log/'+checkpoint["game"]+'.log', 'w')
@@ -36,6 +36,8 @@ class Player:
     def continous_self_play(self):
         print('start play')
         while not ray.get(self.share_storage.get_info.remote("terminate")):
+            if self.test_mode:
+                self.model.set_weights(ray.get(self.share_storage.get_info.remote('weights')))
             self.paly_game()
         print('end play')
 
@@ -46,36 +48,40 @@ class Player:
         # self.game.step(1)
         step = 1
         # live=5
-        self.game_history.clear_memory()
+        if not self.test_mode:
+            self.game_history.clear_memory()
 
-        while not done:
-            # fake_done=False
-            action_index = self.choose_action(obs)
-            obs_, reward, done, info = self.game.step(
-                self.action_list[action_index])
-            # if info["ale.lives"] != live:
-            #     reward=-10
-            #     live=info["ale.lives"]
-            #     self.game.step(1)
-            #     fake_done=True
-            self.game_history.save_transition(torch.FloatTensor(obs).cuda().permute(2, 0, 1), action_index, reward)
+        with torch.no_grad():
+            while not done:
+                # fake_done=False
 
-            if done or step % 20 == 0:
-                if done:
-                    v_s_ = 0.
-                else:
-                    _, v_s_ = self.model(torch.FloatTensor(obs_).cuda().permute(2, 0, 1).unsqueeze(0))
-                    v_s_ = v_s_[0]
+                action_index = self.choose_action(obs)
+                obs_, reward, done, info = self.game.step(
+                    self.action_list[action_index])
+                # if info["ale.lives"] != live:
+                #     reward=-10
+                #     live=info["ale.lives"]
+                #     self.game.step(1)
+                #     fake_done=True
 
-                self.game_history.process(v_s_, self.gamma)
-                self.trainer.update_weights.remote(self.game_history)
-                self.model.set_weights(
-                    ray.get(self.share_storage.get_info.remote('weights')))
-                self.game_history.clear_memory()
+                if not self.test_mode:
+                    self.game_history.save_transition(torch.FloatTensor(obs).cuda().permute(2, 0, 1), action_index, reward)
+                    if done or step % 20 == 0:
+                        if done:
+                            v_s_ = 0.
+                        else:
+                            _, v_s_ = self.model(torch.FloatTensor(obs_).cuda().permute(2, 0, 1).unsqueeze(0))
+                            v_s_ = v_s_[0]
 
-            obs = obs_
-            ep_r += reward
-            step += 1
+                        self.game_history.process(v_s_, self.gamma)
+                        self.trainer.update_weights.remote(self.game_history)
+                        self.model.set_weights(
+                            ray.get(self.share_storage.get_info.remote('weights')))
+                        self.game_history.clear_memory()
+
+                obs = obs_
+                ep_r += reward
+                step += 1
 
         if self.test_mode:
             print(self.palyed_game, ep_r)
@@ -86,7 +92,10 @@ class Player:
     def choose_action(self, obs):
         obs_input = torch.FloatTensor(obs).cuda().permute(2, 0, 1).unsqueeze(0)
         prob, _ = self.model(obs_input)
-        action_index = prob[0].multinomial(num_samples=1).detach()
+        if self.test_mode:
+            return np.argmax(prob[0].cpu().numpy())
+
+        action_index = prob[0].multinomial(num_samples=1)
         return action_index
 
 class GameHistory:

@@ -42,6 +42,7 @@ if __name__ == "__main__":
         "gamma": 0.99,
         "epsilon": 1,
         "model_save_iter": 100,
+        "memory_update_iter":20,
         "tau": 0.002,
         "max_len_step": 10,
         "action_list": [0, 2, 3]

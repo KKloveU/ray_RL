@@ -14,6 +14,8 @@ class Trainer:
     def __init__(self,checkpoint,share_storage) -> None:
         self.model=models.Model().cuda()
         self.model.set_weights(copy.deepcopy(checkpoint["weights"]))
+        self.optimizer=torch.optim.Adam(self.model.parameters(),lr=checkpoint['lr'])
+        self.share_storage=share_storage
         
         self.training_step=checkpoint['training_step']
         self.trained_step=checkpoint['max_training_step']
@@ -21,12 +23,9 @@ class Trainer:
         self.batch_size=checkpoint['batch_size']
         self.gamma=checkpoint['gamma']
         self.model_save_iter=checkpoint['model_save_iter']
-        self.share_storage=share_storage
+        self.memory_update_iter=checkpoint['memory_update_iter']
 
         self.learn_step_counter=1
-
-        self.optimizer=torch.optim.Adam(self.model.parameters(),lr=checkpoint['lr'])
- 
         print('trainer init done')
         
     def continous_update_weights(self):
