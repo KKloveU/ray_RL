@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from atari_wrappers import make_atari, wrap_deepmind
 from models import Model
+from torch.utils.tensorboard import SummaryWriter
 
 game_name="Breakout"
 path_file=r"./model_checkpoint/"+game_name+"_model"
@@ -16,6 +17,8 @@ model.set_weights(model_params["weights"])
 action_list=[0,2,3]
 model.eval()
 
+writer=SummaryWriter('./log')
+
 with torch.no_grad():
     for episode in range(10):
         ep_r=0
@@ -24,7 +27,7 @@ with torch.no_grad():
         obs=game.reset()
         game.step(1)
         while not done :
-            game.render()
+            # game.render()
             time.sleep(0.01)
             obs_input=torch.FloatTensor(np.array(obs)).cuda().permute(2,0,1).unsqueeze(0)
             action_index=np.argmax(model(obs_input).cpu().numpy()[0])
@@ -33,8 +36,9 @@ with torch.no_grad():
                     reward=-1 
                     live=info["ale.lives"]
                     game.step(1)
-            print(info)
+            # print(info)
             obs=obs_
             ep_r+=reward
-            
+        writer.add_scalar('ep_r',ep_r,episode)
+
         print(ep_r)

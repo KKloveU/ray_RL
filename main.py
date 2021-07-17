@@ -4,17 +4,17 @@ import numpy as np
 import torch
 import player
 import trainer
-import replay_buffer
+# import replay_buffer
 import share_storage
 import models
 import copy
 import time
 
-NUM_WORKER=1
-game_name="Breakout"
+NUM_WORKER=5
+game_name="Pong"
 path_file=r"./model_checkpoint/"+game_name+"_model"
 
-class CPUActor:
+class ModelLoader:
     # Trick to force DataParallel to stay on CPU to get weights on CPU even if there is a GPU
     def __init__(self):
         pass
@@ -42,43 +42,37 @@ if __name__=="__main__":
         "epsilon":1,
         "replace_target_iter":100,
         "tau":0.002,
+        "max_len_step":10,
         "action_list":[0,2,3]
     }
-
 
     if os.path.exists(path_file):
         model_params=torch.load(path_file) 
         checkpoint["weights"]=copy.deepcopy(model_params["weights"])
         print('Load model!')
     else:
-        cpu_actor=CPUActor()
+        cpu_actor=ModelLoader()
         cpu_weights = cpu_actor.get_initial_weights()
         checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
         print('Init model!')
 
-    # init nodes
-    share_storage_worker = share_storage.SharedStorage.remote(checkpoint)
-    replay_buffer_worker = replay_buffer.ReplayBuffer.remote(checkpoint,share_storage_worker)
 
-    training_worker = trainer.Trainer.options(num_cpus=1,num_gpus=2).remote(checkpoint)
-    self_play_workers = [player.Player.options(num_cpus=1,num_gpus=0).remote(checkpoint,True,1e-2) 
+    # init nodes
+    share_storage_worker = share_storage.SharedStorage.options(num_cpus=1,num_gpus=0.1).remote(checkpoint)
+    
+    training_worker=trainer.Trainer.options(num_cpus=1,num_gpus=0.1).remote(checkpoint,share_storage_worker)
+
+    self_play_workers = [player.Player.options(num_cpus=1,num_gpus=0.1).remote(checkpoint,True,share_storage_worker,training_worker) 
                                         for _ in range(NUM_WORKER)]
 
-    # self_play_workers=[]
-    # checkpoint["epsilon"]=1
-    # self_play_workers.append(player.Player.options(num_cpus=1,num_gpus=0.1).remote(checkpoint,True,1e-2))
-    # # checkpoint["epsilon"]=1
-    # # self_play_workers.append(player.Player.options(num_cpus=1,num_gpus=0.1).remote(checkpoint,False,0))
-    # # checkpoint["epsilon"]=1
-    # # self_play_workers.append(player.Player.options(num_cpus=1,num_gpus=0.1).remote(checkpoint,False,0))
 
     print("init nodes done!")
     
 
     # start works
-    [worker.continous_self_play.remote(share_storage_worker,replay_buffer_worker) 
+    [worker.continous_self_play.remote(test_mode=False) 
                                         for worker in self_play_workers]
-    training_worker.continous_update_weights.remote(share_storage_worker,replay_buffer_worker)
+    # training_worker.continous_update_weights.remote(share_storage_worker)
 
     while True:
         time.sleep(5)

@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+
+from torch.nn.modules.activation import Softmax
 class NoisyFactorizedLinear(nn.Linear):
     """
     NoisyNet layer with factorized gaussian noise
@@ -59,7 +61,7 @@ class Atten(nn.Module):
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
-
+        self.distribution = torch.distributions.Categorical
         self.features = nn.Sequential(
             nn.Conv2d(4, 32, kernel_size=8, stride=4),
             nn.ReLU(),
@@ -70,7 +72,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
-            Atten(),
+            # Atten(),
             # nn.Dropout(0.2),
             
         )
@@ -78,16 +80,17 @@ class Model(nn.Module):
         self.advantage = nn.Sequential(
             # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.ReLU(),
             # NoisyFactorizedLinear(512,3),
-            nn.Linear(512, 3)
+            nn.Linear(512, 3),
+            nn.Softmax(dim=-1)
         )
 
         self.value = nn.Sequential(
             # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
 
             nn.ReLU(),
             # NoisyFactorizedLinear(512, 1),
@@ -100,22 +103,23 @@ class Model(nn.Module):
         x = torch.flatten(x,1)
         advantage = self.advantage(x)
         value     = self.value(x)
-        return value + advantage  - advantage.mean()
+        return advantage,value
 
     def get_weights(self):
-        return dict_to_cpu(self.state_dict())
+        return self.state_dict()
+        # return dict_to_cpu(self.state_dict())
 
     def set_weights(self,weights):
         self.load_state_dict(weights)
 
 
-def dict_to_cpu(dictionary):
-    cpu_dict = {}
-    for key, value in dictionary.items():
-        if isinstance(value, torch.Tensor):
-            cpu_dict[key] = value.cpu()
-        elif isinstance(value, dict):
-            cpu_dict[key] = dict_to_cpu(value)
-        else:
-            cpu_dict[key] = value
-    return cpu_dict
+# def dict_to_cpu(dictionary):
+#     cpu_dict = {}
+#     for key, value in dictionary.items():
+#         if isinstance(value, torch.Tensor):
+#             cpu_dict[key] = value.cpu()
+#         elif isinstance(value, dict):
+#             cpu_dict[key] = dict_to_cpu(value)
+#         else:
+#             cpu_dict[key] = value
+#     return cpu_dict
