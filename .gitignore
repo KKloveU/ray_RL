@@ -28,8 +28,8 @@ share/python-wheels/
 MANIFEST
 
 # model and log
-/model_checkpoint
-/log
+model_checkpoint/*
+log/*
 
 
 # PyInstaller
