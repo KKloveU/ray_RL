@@ -12,7 +12,7 @@ import time
 
 NUM_WORKER=1
 game_name="Breakout"
-path_file=r"./model_checkpoint/"+game_name+"_model"
+path_file=r"./model_checkpoint/"+game_name+".model"
 
 class CPUActor:
     # Trick to force DataParallel to stay on CPU to get weights on CPU even if there is a GPU
