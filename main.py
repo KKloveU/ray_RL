@@ -9,7 +9,7 @@ import models
 import copy
 import time
 
-NUM_WORKER = 2
+NUM_WORKER = 10
 game_name = "Pong"
 path_file = r"./model_checkpoint/"+game_name+".model"
 

@@ -106,20 +106,19 @@ class Model(nn.Module):
         return advantage,value
 
     def get_weights(self):
-        return self.state_dict()
-        # return dict_to_cpu(self.state_dict())
+        return dict_to_cpu(self.state_dict())
 
     def set_weights(self,weights):
         self.load_state_dict(weights)
 
 
-# def dict_to_cpu(dictionary):
-#     cpu_dict = {}
-#     for key, value in dictionary.items():
-#         if isinstance(value, torch.Tensor):
-#             cpu_dict[key] = value.cpu()
-#         elif isinstance(value, dict):
-#             cpu_dict[key] = dict_to_cpu(value)
-#         else:
-#             cpu_dict[key] = value
-#     return cpu_dict
+def dict_to_cpu(dictionary):
+    cpu_dict = {}
+    for key, value in dictionary.items():
+        if isinstance(value, torch.Tensor):
+            cpu_dict[key] = value.cpu()
+        elif isinstance(value, dict):
+            cpu_dict[key] = dict_to_cpu(value)
+        else:
+            cpu_dict[key] = value
+    return cpu_dict
