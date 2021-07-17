@@ -18,6 +18,7 @@ class Player:
         self.max_len_episode = checkpoint["max_len_episode"]
         self.max_len_step = checkpoint["max_len_step"]
         self.training_step = checkpoint["training_step"]
+        self.memory_update_iter= checkpoint["memory_update_iter"]
         
         self.trainer = trainer
         self.share_storage = share_storage
@@ -66,7 +67,7 @@ class Player:
 
                 if not self.test_mode:
                     self.game_history.save_transition(torch.FloatTensor(obs).cuda().permute(2, 0, 1), action_index, reward)
-                    if done or step % 20 == 0:
+                    if done or step % self.memory_update_iter == 0:
                         if done:
                             v_s_ = 0.
                         else:

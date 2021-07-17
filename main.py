@@ -9,7 +9,7 @@ import models
 import copy
 import time
 
-NUM_WORKER = 1
+NUM_WORKER = 2
 game_name = "Pong"
 path_file = r"./model_checkpoint/"+game_name+".model"
 
@@ -37,13 +37,9 @@ if __name__ == "__main__":
         "training_step": 0,
         "max_training_step": 2e3,
         "max_len_episode": 2e3,
-        "memory_size": 5e3,
-        "batch_size": 128,
         "gamma": 0.99,
-        "epsilon": 1,
         "model_save_iter": 100,
         "memory_update_iter":20,
-        "tau": 0.002,
         "max_len_step": 10,
         "action_list": [0, 2, 3]
     }
