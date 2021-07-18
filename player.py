@@ -7,7 +7,7 @@ from atari_wrappers import make_atari, wrap_deepmind
 
 @ray.remote
 class Player:
-    def __init__(self, checkpoint, replay_buffer, share_storage, test_mode,test_model):
+    def __init__(self, checkpoint, replay_buffer, share_storage, test_mode,test_model,model_name):
         self.game = make_atari(checkpoint["game"]+"NoFrameskip-v4")
         self.game = wrap_deepmind(self.game, scale=True, frame_stack=True)
         self.action_list = checkpoint["action_list"]
@@ -27,7 +27,7 @@ class Player:
         self.test_mode = test_mode
         if self.test_mode:
             self.palyed_game = 0
-            self.epr_writer = open('./log/'+checkpoint["game"]+str(test_model)+'.log', 'w')
+            self.epr_writer = open('./log/'+checkpoint["game"]+model_name+'.log', 'w')
 
         print('player init done')
 

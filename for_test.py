@@ -1,6 +1,7 @@
 import os
 import ray
 import numpy as np
+from ray import worker
 import torch
 import player
 import trainer
@@ -21,6 +22,10 @@ NUM_WORKER = 1
 game_name = "Breakout"
 path_file = r"./model_checkpoint/"+game_name+".model"
 
+    # play_worker_list=[]
+    # train_worker_list=[]
+    # share_worker_list=[]
+    # replay_worker_list=[]
 
 class CPUActor:
     # Trick to force DataParallel to stay on CPU to get weights on CPU even if there is a GPU
@@ -34,27 +39,25 @@ class CPUActor:
         return weigths, summary
 
 
-class For_test():
-    def __init__(self,checkpoint,test_model) -> None:
-        share_storage_worker = share_storage.SharedStorage.remote(checkpoint,test_model)
 
-        replay_buffer_worker = replay_buffer.ReplayBuffer.remote(
-            checkpoint, share_storage_worker)
+# def for_test(checkpoint,test_model,model_name):
+#     share_storage_worker = share_storage.SharedStorage.remote(checkpoint,model_name)
 
-        self.training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
-            checkpoint, replay_buffer_worker, share_storage_worker,test_model)
+#     replay_buffer_worker = replay_buffer.ReplayBuffer.remote(
+#         checkpoint, share_storage_worker)
 
-        self.self_play_workers = [player.Player.options(num_gpus=0.1).remote(
-            checkpoint,replay_buffer_worker,share_storage_worker, False,test_model) for _ in range(NUM_WORKER)]
+#     training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+#         checkpoint, replay_buffer_worker, share_storage_worker,test_model)
 
-        self.self_play_workers.append(player.Player.options(
-            num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True,test_model))
-    
-    def run(self):
-        [worker.continous_self_play.remote() for worker in self.self_play_workers]
+#     self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+#         checkpoint,replay_buffer_worker,share_storage_worker, False,test_model,model_name) for _ in range(NUM_WORKER)]
 
-        self.training_worker.continous_update_weights.remote()
-        
+#     self_play_workers.append(player.Player.options(
+#         num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True,test_model,model_name))
+
+#     [worker.continous_self_play.remote() for worker in self_play_workers]
+#     training_worker.continous_update_weights.remote()
+
 
 
 if __name__ == "__main__":
@@ -79,65 +82,161 @@ if __name__ == "__main__":
         "action_list": [0, 2, 3]
     }
 
-    for_test=[]
+    # for_test=[]
 
-    # model='_atten'
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
+    model_name='_atten'
+    test_model=models_atten
 
-
-    # model='_dropout'
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
-
-
-    # model='_dueing_drop_atten'
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
-
-
-    model='_dueing_noisy_atten'
     cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights(models_dueing_noisy_atten)
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,models_dueing_noisy_atten))
-    print("done!")
+    share_storage_worker = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker, share_storage_worker,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker,share_storage_worker, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
 
 
-    # model='_dueing_noisy'
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
+    model_name='_dropout'
+    test_model=models_dropout
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker1 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker1 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker1)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker1, share_storage_worker1,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker1,share_storage_worker1, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker1,share_storage_worker1, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
 
 
-    # model='_dueing'
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
+    model_name='_dueing_drop_atten'
+    test_model=models_dueing_dropout_atten
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker2 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker2 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker2)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker2, share_storage_worker2,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker2,share_storage_worker2, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker2,share_storage_worker2, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
 
 
-    # model='_noisy'
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
+    model_name='_dueing_noisy_atten'
+    test_model=models_dueing_noisy_atten
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker3 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker3 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker3, share_storage_worker3,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker3,share_storage_worker3, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker3,share_storage_worker3, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
 
 
-    # model=''
-    # cpu_actor = CPUActor()
-    # cpu_weights = cpu_actor.get_initial_weights()
-    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    # for_test.append(For_test(checkpoint,model))
 
-    [runner.run() for runner in for_test]
+    model_name='_dueing_noisy'
+    test_model=models_dueing_noisy
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker4 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker4 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker4, share_storage_worker4,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker4,share_storage_worker4, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker4,share_storage_worker4, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
+
+
+    model_name='_dueing'
+    test_model=models_dueing
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker5 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker5 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker5, share_storage_worker5,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker5,share_storage_worker5, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker5,share_storage_worker5, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
+
+
+    model_name='_noisy'
+    test_model=models_noisy
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker6 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker6 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker6, share_storage_worker6,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker6,share_storage_worker6, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker6,share_storage_worker6, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
+
+
+    model_name=''
+    test_model=models
+
+    cpu_actor = CPUActor()
+    cpu_weights = cpu_actor.get_initial_weights(test_model)
+    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    share_storage_worker7 = share_storage.SharedStorage.remote(checkpoint,model_name)
+    replay_buffer_worker7 = replay_buffer.ReplayBuffer.remote(
+        checkpoint, share_storage_worker)
+    training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+        checkpoint, replay_buffer_worker7, share_storage_worker,test_model)
+    self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+        checkpoint,replay_buffer_worker7,share_storage_worker7, False,test_model,model_name) for _ in range(NUM_WORKER)]
+    self_play_workers.append(player.Player.options(
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker7,share_storage_worker7, True,test_model,model_name))
+    [worker.continous_self_play.remote() for worker in self_play_workers]
+    training_worker.continous_update_weights.remote()
+
+
 
     while True:
         time.sleep(10)
