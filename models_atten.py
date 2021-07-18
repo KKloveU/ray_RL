@@ -70,7 +70,7 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
-            # Atten(),
+            Atten(),
             # nn.Dropout(0.2),
             
         )

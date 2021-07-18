@@ -4,9 +4,9 @@ import torch
 
 @ray.remote
 class SharedStorage:
-    def __init__(self,checkpoint) -> None:
+    def __init__(self,checkpoint,test_model) -> None:
         self.current_checkpoint=copy.deepcopy(checkpoint)
-        self.path='./model_checkpoint/'+self.current_checkpoint["game"]+'.model'
+        self.path='./model_checkpoint/'+self.current_checkpoint["game"]+test_model+'.model'
 
     def save_checkpoint(self):
         torch.save(self.current_checkpoint,self.path)

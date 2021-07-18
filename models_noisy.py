@@ -76,18 +76,18 @@ class Model(nn.Module):
         )
 
         self.advantage = nn.Sequential(
-            # NoisyFactorizedLinear(3136, 512),
-            nn.Linear(3136, 512),
+            NoisyFactorizedLinear(3136, 512),
+            # nn.Linear(3136, 512),
             # nn.Dropout(0.2),
             nn.ReLU(),
-            # NoisyFactorizedLinear(512,3),
-            nn.Linear(512, 3)
+            NoisyFactorizedLinear(512,3),
+            # nn.Linear(512, 3)
         )
 
         # self.value = nn.Sequential(
         #     # NoisyFactorizedLinear(3136, 512),
         #     nn.Linear(3136, 512),
-        #     # nn.Dropout(0.2),
+        #     nn.Dropout(0.2),
 
         #     nn.ReLU(),
         #     # NoisyFactorizedLinear(512, 1),

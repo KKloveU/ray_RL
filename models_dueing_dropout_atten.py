@@ -63,14 +63,14 @@ class Model(nn.Module):
         self.features = nn.Sequential(
             nn.Conv2d(4, 32, kernel_size=8, stride=4),
             nn.ReLU(),
-            # nn.Dropout(0.2),
+            nn.Dropout(0.2),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
 
-            # nn.Dropout(0.2),
+            nn.Dropout(0.2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
-            # Atten(),
+            Atten(),
             # nn.Dropout(0.2),
             
         )
@@ -78,30 +78,29 @@ class Model(nn.Module):
         self.advantage = nn.Sequential(
             # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
-            # nn.Dropout(0.2),
+            nn.Dropout(0.2),
             nn.ReLU(),
             # NoisyFactorizedLinear(512,3),
             nn.Linear(512, 3)
         )
 
-        # self.value = nn.Sequential(
-        #     # NoisyFactorizedLinear(3136, 512),
-        #     nn.Linear(3136, 512),
-        #     # nn.Dropout(0.2),
+        self.value = nn.Sequential(
+            # NoisyFactorizedLinear(3136, 512),
+            nn.Linear(3136, 512),
+            nn.Dropout(0.2),
 
-        #     nn.ReLU(),
-        #     # NoisyFactorizedLinear(512, 1),
-        #     nn.Linear(512, 1)
-        # )
+            nn.ReLU(),
+            # NoisyFactorizedLinear(512, 1),
+            nn.Linear(512, 1)
+        )
 
 
     def forward(self, x):
         x = self.features(x)
         x = torch.flatten(x,1)
         advantage = self.advantage(x)
-        # value     = self.value(x)
-        # return value + advantage  - advantage.mean()
-        return advantage
+        value     = self.value(x)
+        return value + advantage  - advantage.mean()
 
     def get_weights(self):
         return dict_to_cpu(self.state_dict())

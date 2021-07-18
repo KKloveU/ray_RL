@@ -63,22 +63,22 @@ class Model(nn.Module):
         self.features = nn.Sequential(
             nn.Conv2d(4, 32, kernel_size=8, stride=4),
             nn.ReLU(),
-            # nn.Dropout(0.2),
+            nn.Dropout(0.2),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
 
-            # nn.Dropout(0.2),
+            nn.Dropout(0.2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
-            # Atten(),
-            # nn.Dropout(0.2),
+            Atten(),
+            nn.Dropout(0.2),
             
         )
 
         self.advantage = nn.Sequential(
             # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
-            # nn.Dropout(0.2),
+            nn.Dropout(0.2),
             nn.ReLU(),
             # NoisyFactorizedLinear(512,3),
             nn.Linear(512, 3)
@@ -87,7 +87,7 @@ class Model(nn.Module):
         # self.value = nn.Sequential(
         #     # NoisyFactorizedLinear(3136, 512),
         #     nn.Linear(3136, 512),
-        #     # nn.Dropout(0.2),
+        #     nn.Dropout(0.2),
 
         #     nn.ReLU(),
         #     # NoisyFactorizedLinear(512, 1),
