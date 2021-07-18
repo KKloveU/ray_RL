@@ -12,8 +12,8 @@ import time
 
 NUM_WORKER = 1
 game_name = "Breakout"
-path_file = r"./model_checkpoint/"+game_name+".model"
-
+model='_dueing_noisy_atten'
+path_file = r"./model_checkpoint/"+game_name+model+".model"
 
 class CPUActor:
     # Trick to force DataParallel to stay on CPU to get weights on CPU even if there is a GPU
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         print('Init model!')
 
     # init nodes
-    share_storage_worker = share_storage.SharedStorage.remote(checkpoint)
+    share_storage_worker = share_storage.SharedStorage.remote(checkpoint,model)
 
     replay_buffer_worker = replay_buffer.ReplayBuffer.remote(
         checkpoint, share_storage_worker)
@@ -69,10 +69,10 @@ if __name__ == "__main__":
         checkpoint, replay_buffer_worker, share_storage_worker)
 
     self_play_workers = [player.Player.options(num_gpus=0.6).remote(
-        checkpoint,replay_buffer_worker,share_storage_worker, False) for _ in range(NUM_WORKER)]
+        checkpoint,replay_buffer_worker,share_storage_worker, False,model) for _ in range(NUM_WORKER)]
 
     self_play_workers.append(player.Player.options(
-        num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True))
+        num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True,model))
 
     print("init nodes done!")
 

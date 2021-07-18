@@ -28,8 +28,8 @@ class CPUActor:
 
 @ray.remote(nums_gpu=1)
 class For_test():
-    def __init__(self,checkpoint,test_model) -> None:
-        share_storage_worker = share_storage.SharedStorage.remote(checkpoint,test_model)
+    def __init__(self,checkpoint,model) -> None:
+        share_storage_worker = share_storage.SharedStorage.remote(checkpoint,model)
 
         replay_buffer_worker = replay_buffer.ReplayBuffer.remote(
             checkpoint, share_storage_worker)
@@ -38,10 +38,10 @@ class For_test():
             checkpoint, replay_buffer_worker, share_storage_worker)
 
         self.self_play_workers = [player.Player.options(num_gpus=0.6).remote(
-            checkpoint,replay_buffer_worker,share_storage_worker, False) for _ in range(NUM_WORKER)]
+            checkpoint,replay_buffer_worker,share_storage_worker, False,model) for _ in range(NUM_WORKER)]
 
         self.self_play_workers.append(player.Player.options(
-            num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True))
+            num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker,model, True))
     
     def run(self):
         [worker.continous_self_play.remote() for worker in self.self_play_workers]
@@ -74,60 +74,60 @@ if __name__ == "__main__":
 
     for_test=[]
 
-    test_model='_atten'
+    model='_atten'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model='_dropout'
+    model='_dropout'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model='_dueing_drop_atten'
+    model='_dueing_drop_atten'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model='_dueing_noisy_atten'
+    model='_dueing_noisy_atten'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model='_dueing_noisy'
+    model='_dueing_noisy'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model='_dueing'
+    model='_dueing'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model='_noisy'
+    model='_noisy'
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
 
-    test_model=''
+    model=''
     cpu_actor = CPUActor()
     cpu_weights = cpu_actor.get_initial_weights()
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,test_model))
+    for_test.append(For_test(checkpoint,model))
 
     [runner.run.remote() for runner in for_test]
 
