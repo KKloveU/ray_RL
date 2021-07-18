@@ -7,6 +7,13 @@ import trainer
 import replay_buffer
 import share_storage
 import models
+import models_atten
+import models_dropout
+import models_dueing
+import models_dueing_dropout_atten
+import models_dueing_noisy
+import models_dueing_noisy_atten
+import models_noisy
 import copy
 import time
 
@@ -20,28 +27,28 @@ class CPUActor:
     def __init__(self):
         pass
 
-    def get_initial_weights(self):
-        model = models.Model()
+    def get_initial_weights(self,test_model):
+        model = test_model.Model()
         weigths = model.get_weights()
         summary = str(model).replace("\n", " \n\n")
         return weigths, summary
 
-@ray.remote(num_gpus=1)
+
 class For_test():
-    def __init__(self,checkpoint,model) -> None:
-        share_storage_worker = share_storage.SharedStorage.remote(checkpoint,model)
+    def __init__(self,checkpoint,test_model) -> None:
+        share_storage_worker = share_storage.SharedStorage.remote(checkpoint,test_model)
 
         replay_buffer_worker = replay_buffer.ReplayBuffer.remote(
             checkpoint, share_storage_worker)
 
-        self.training_worker = trainer.Trainer.options(num_gpus=0.1).remote(
-            checkpoint, replay_buffer_worker, share_storage_worker)
+        self.training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
+            checkpoint, replay_buffer_worker, share_storage_worker,test_model)
 
-        self.self_play_workers = [player.Player.options(num_gpus=0.6).remote(
-            checkpoint,replay_buffer_worker,share_storage_worker, False,model) for _ in range(NUM_WORKER)]
+        self.self_play_workers = [player.Player.options(num_gpus=0.1).remote(
+            checkpoint,replay_buffer_worker,share_storage_worker, False,test_model) for _ in range(NUM_WORKER)]
 
         self.self_play_workers.append(player.Player.options(
-            num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker,model, True))
+            num_gpus=0.1).remote(checkpoint, replay_buffer_worker,share_storage_worker, True,test_model))
     
     def run(self):
         [worker.continous_self_play.remote() for worker in self.self_play_workers]
@@ -74,62 +81,63 @@ if __name__ == "__main__":
 
     for_test=[]
 
-    model='_atten'
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model='_atten'
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
 
-    model='_dropout'
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model='_dropout'
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
 
-    model='_dueing_drop_atten'
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model='_dueing_drop_atten'
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
 
     model='_dueing_noisy_atten'
     cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
+    cpu_weights = cpu_actor.get_initial_weights(models_dueing_noisy_atten)
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    for_test.append(For_test(checkpoint,models_dueing_noisy_atten))
+    print("done!")
 
 
-    model='_dueing_noisy'
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model='_dueing_noisy'
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
 
-    model='_dueing'
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model='_dueing'
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
 
-    model='_noisy'
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model='_noisy'
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
 
-    model=''
-    cpu_actor = CPUActor()
-    cpu_weights = cpu_actor.get_initial_weights()
-    checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
-    for_test.append(For_test(checkpoint,model))
+    # model=''
+    # cpu_actor = CPUActor()
+    # cpu_weights = cpu_actor.get_initial_weights()
+    # checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
+    # for_test.append(For_test(checkpoint,model))
 
-    [runner.run.remote() for runner in for_test]
+    [runner.run() for runner in for_test]
 
     while True:
         time.sleep(10)

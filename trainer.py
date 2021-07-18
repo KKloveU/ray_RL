@@ -1,7 +1,6 @@
 import time
 import ray
 import cv2
-import models
 import copy
 import torch
 import numpy as np
@@ -10,11 +9,11 @@ import time
 
 @ray.remote
 class Trainer:
-    def __init__(self,checkpoint,replay_buffer,share_storage) -> None:
+    def __init__(self,checkpoint,replay_buffer,share_storage,test_model) -> None:
         # self.eval_model=nn.DataParallel(models.Model())       #multi-GPU
         # self.target_model=nn.DataParallel(models.Model())     #multi-GPU
-        self.eval_model=models.Model()
-        self.target_model=models.Model()
+        self.eval_model=test_model.Model()
+        self.target_model=test_model.Model()
         # self.eval_model.module.set_weights(copy.deepcopy(checkpoint["weights"]))      #multi-GPU
         # self.target_model.module.set_weights(copy.deepcopy(checkpoint["weights"]))    #multi-GPU
         self.eval_model.set_weights(copy.deepcopy(checkpoint["weights"]))

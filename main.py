@@ -66,7 +66,7 @@ if __name__ == "__main__":
         checkpoint, share_storage_worker)
 
     training_worker = trainer.Trainer.options(num_gpus=0.1).remote(
-        checkpoint, replay_buffer_worker, share_storage_worker)
+        checkpoint, replay_buffer_worker, share_storage_worker,)
 
     self_play_workers = [player.Player.options(num_gpus=0.6).remote(
         checkpoint,replay_buffer_worker,share_storage_worker, False,model) for _ in range(NUM_WORKER)]
