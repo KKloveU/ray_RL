@@ -149,7 +149,7 @@ if __name__ == "__main__":
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
     share_storage_worker3 = share_storage.SharedStorage.remote(checkpoint,model_name)
     replay_buffer_worker3 = replay_buffer.ReplayBuffer.remote(
-        checkpoint, share_storage_worker)
+        checkpoint, share_storage_worker3)
     training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
         checkpoint, replay_buffer_worker3, share_storage_worker3,test_model)
     self_play_workers = [player.Player.options(num_gpus=0.1).remote(
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
     share_storage_worker4 = share_storage.SharedStorage.remote(checkpoint,model_name)
     replay_buffer_worker4 = replay_buffer.ReplayBuffer.remote(
-        checkpoint, share_storage_worker)
+        checkpoint, share_storage_worker4)
     training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
         checkpoint, replay_buffer_worker4, share_storage_worker4,test_model)
     self_play_workers = [player.Player.options(num_gpus=0.1).remote(
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
     share_storage_worker5 = share_storage.SharedStorage.remote(checkpoint,model_name)
     replay_buffer_worker5 = replay_buffer.ReplayBuffer.remote(
-        checkpoint, share_storage_worker)
+        checkpoint, share_storage_worker5)
     training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
         checkpoint, replay_buffer_worker5, share_storage_worker5,test_model)
     self_play_workers = [player.Player.options(num_gpus=0.1).remote(
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
     share_storage_worker6 = share_storage.SharedStorage.remote(checkpoint,model_name)
     replay_buffer_worker6 = replay_buffer.ReplayBuffer.remote(
-        checkpoint, share_storage_worker)
+        checkpoint, share_storage_worker6)
     training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
         checkpoint, replay_buffer_worker6, share_storage_worker6,test_model)
     self_play_workers = [player.Player.options(num_gpus=0.1).remote(
@@ -226,9 +226,9 @@ if __name__ == "__main__":
     checkpoint["weights"], summary = copy.deepcopy(cpu_weights)
     share_storage_worker7 = share_storage.SharedStorage.remote(checkpoint,model_name)
     replay_buffer_worker7 = replay_buffer.ReplayBuffer.remote(
-        checkpoint, share_storage_worker)
+        checkpoint, share_storage_worker7)
     training_worker = trainer.Trainer.options(num_gpus=0.6).remote(
-        checkpoint, replay_buffer_worker7, share_storage_worker,test_model)
+        checkpoint, replay_buffer_worker7, share_storage_worker7,test_model)
     self_play_workers = [player.Player.options(num_gpus=0.1).remote(
         checkpoint,replay_buffer_worker7,share_storage_worker7, False,test_model,model_name) for _ in range(NUM_WORKER)]
     self_play_workers.append(player.Player.options(
