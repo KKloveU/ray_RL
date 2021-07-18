@@ -26,7 +26,7 @@ class CPUActor:
         summary = str(model).replace("\n", " \n\n")
         return weigths, summary
 
-@ray.remote(nums_gpu=1)
+@ray.remote(num_gpus=1)
 class For_test():
     def __init__(self,checkpoint,model) -> None:
         share_storage_worker = share_storage.SharedStorage.remote(checkpoint,model)
