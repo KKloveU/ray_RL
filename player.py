@@ -54,11 +54,13 @@ class Player:
 
         with torch.no_grad():
             while not done:
-                # fake_done=False
+                fake_done=False
 
                 action_index = self.choose_action(obs)
                 obs_, reward, done, info = self.game.step(
                     self.action_list[action_index])
+                if reward==-1:
+                    fake_done=True
                 # if info["ale.lives"] != live:
                 #     reward=-10
                 #     live=info["ale.lives"]
@@ -67,8 +69,8 @@ class Player:
 
                 if not self.test_mode:
                     self.game_history.save_transition(torch.FloatTensor(obs).cuda().permute(2, 0, 1), action_index, reward)
-                    if done or step % self.memory_update_iter == 0:
-                        if done:
+                    if fake_done or step % self.memory_update_iter == 0:
+                        if fake_done:
                             v_s_ = 0.
                         else:
                             _, v_s_ = self.model(torch.FloatTensor(obs_).cuda().permute(2, 0, 1).unsqueeze(0))
