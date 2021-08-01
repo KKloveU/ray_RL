@@ -45,7 +45,7 @@ class Trainer:
         print('start train-----------------------------------------------------')
         
         batch=self.replay_buffer.get_batch.remote(self.batch_size)
-        while True:
+        while self.learn_step_counter<self.max_training_step:
             if self.flag:
                 batch_=self.replay_buffer.get_batch.remote(self.batch_size)
                 batch=ray.get(batch)
