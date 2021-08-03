@@ -1,5 +1,6 @@
 from numpy.core.numeric import outer
 import torch
+from torch.distributions.transforms import CatTransform
 import torch.nn as nn
 import torch.nn.functional as F
 import math
@@ -58,58 +59,96 @@ class Atten(nn.Module):
         out=self.gamma*out+x
         return out
 
-class Model(nn.Module):
+
+class Critic(nn.Module):
     def __init__(self):
-        super(Model, self).__init__()
-        self.distribution = torch.distributions.Categorical
+        super(Critic, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(4, 32, kernel_size=8, stride=4),
-            nn.ReLU(),
-            # nn.Dropout(0.2),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+                nn.Conv2d(4, 32, kernel_size=8, stride=4),
+                nn.ReLU(),
 
-            # nn.Dropout(0.2),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1),
-            nn.ReLU(),
-            # Atten(),
-            # nn.Dropout(0.2),
-            
+                nn.Conv2d(32, 64, kernel_size=4, stride=2),
+
+                nn.ReLU(),
+                nn.Conv2d(64, 64, kernel_size=3, stride=1),
+                nn.ReLU(),
         )
-
-        self.advantage = nn.Sequential(
-            # NoisyFactorizedLinear(3136, 512),
-            nn.Linear(3136, 512),
-            # nn.Dropout(0.2),
-            nn.ReLU(),
-            # NoisyFactorizedLinear(512,3),
-            nn.Linear(512, 3),
-            nn.Softmax(dim=-1)
-        )
-
         self.value = nn.Sequential(
             # NoisyFactorizedLinear(3136, 512),
             nn.Linear(3136, 512),
-            # nn.Dropout(0.2),
-
             nn.ReLU(),
             # NoisyFactorizedLinear(512, 1),
             nn.Linear(512, 1)
         )
 
-
     def forward(self, x):
         x = self.features(x)
         x = torch.flatten(x,1)
-        advantage = self.advantage(x)
         value     = self.value(x)
-        return advantage,value
+        return value
 
     def get_weights(self):
         return dict_to_cpu(self.state_dict())
 
     def set_weights(self,weights):
         self.load_state_dict(weights)
+
+
+class Actor(nn.Module):
+    def __init__(self):
+        super(Actor, self).__init__()
+        self.distribution = torch.distributions.Categorical
+        self.features = nn.Sequential(
+                nn.Conv2d(4, 32, kernel_size=8, stride=4),
+                nn.ReLU(),
+
+                nn.Conv2d(32, 64, kernel_size=4, stride=2),
+
+                nn.ReLU(),
+                nn.Conv2d(64, 64, kernel_size=3, stride=1),
+                nn.ReLU(),
+        )
+        self.action_head = nn.Sequential(
+            # NoisyFactorizedLinear(3136, 512),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+            # NoisyFactorizedLinear(512,3),
+            nn.Linear(512, 3),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x,1)
+        action_prob = self.action_head(x)
+
+        return action_prob
+
+    def get_weights(self):
+        return dict_to_cpu(self.state_dict())
+
+    def set_weights(self,weights):
+        self.load_state_dict(weights)
+    
+    def select_action(self,x):
+        action_prob=self.forward(x)
+        action=action_prob.multinomial(1)
+        return action
+
+    def get_kl(self,x):
+        action_prob1=self.forward(x)
+        action_prob0=action_prob1.detach()
+        kl=action_prob0*(torch.log(action_prob0)-torch.log(action_prob1))
+        return kl.sum(1,keepdim=True)
+    
+    def get_log_prob(self,x,actions):
+        action_prob=self.forward(x)
+        return torch.log(action_prob.gather(1,actions.long().unsqueeze(1)))
+
+    def get_fim(self,x):
+        action_prob=self.forward(x)
+        M=action_prob.pow(-1).view(-1).detach()
+        return M,action_prob,{}
 
 
 def dict_to_cpu(dictionary):
