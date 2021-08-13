@@ -23,7 +23,7 @@ class Model(nn.Module):
         self.actor = nn.Sequential(
             nn.Linear(3136, 512),
             nn.ReLU(),
-            nn.Linear(512, 6),
+            nn.Linear(512, 3),
             nn.Softmax(dim=-1)
         )
         # self.dist = Categorical(self.base.output_size, num_outputs)
