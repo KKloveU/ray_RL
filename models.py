@@ -1,7 +1,8 @@
+from numpy.core.numeric import outer
 import torch
 import torch.nn as nn
-import math
 import torch.nn.functional as F
+import math
 class NoisyFactorizedLinear(nn.Linear):
     """
     NoisyNet layer with factorized gaussian noise
@@ -30,36 +31,76 @@ class NoisyFactorizedLinear(nn.Linear):
             bias = bias + self.sigma_bias * eps_out.t()
         return F.linear(input, self.weight + self.sigma_weight * noise_v, bias)
 
+class Atten(nn.Module):
+    def __init__(self):
+        super().__init__()
+        in_chanel=64
+        out_chanel=64
+        self.gamma=0.9
+
+        self.query_conv=nn.Conv2d(in_chanel,out_chanel,3,1,(1,1))
+        self.key_conv=nn.Conv2d(in_chanel,out_chanel,3,1,(1,1))
+        self.value_conv=nn.Conv2d(in_chanel,out_chanel,3,1,(1,1))
+        
+    def forward(self,x):
+        query=self.query_conv(x)
+
+        key=self.key_conv(x)
+
+        atten_logit=key*query.permute(0,1,3,2)
+        atten=F.softmax(atten_logit,dim=1)
+
+        value=self.value_conv(x)
+        
+        out=atten*value
+        out=self.gamma*out+x
+        return out
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+
         self.features = nn.Sequential(
             nn.Conv2d(4, 32, kernel_size=8, stride=4),
             nn.ReLU(),
-
+            # nn.Dropout(0.2),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
 
+            # nn.Dropout(0.2),
             nn.ReLU(),
-            nn.Conv2d(64, 32, kernel_size=3, stride=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
-            nn.Flatten(),
-            nn.Linear(1568,512),
-            nn.ReLU()
+            Atten(),
+            # nn.Dropout(0.2),
+            
         )
+
+        self.advantage = nn.Sequential(
+            # NoisyFactorizedLinear(3136, 512),
+            nn.Linear(3136, 512),
+            nn.Dropout(0.2),
+            nn.ReLU(),
+            # NoisyFactorizedLinear(512,3),
+            nn.Linear(512, 3)
+        )
+
         self.value = nn.Sequential(
+            # NoisyFactorizedLinear(3136, 512),
+            nn.Linear(3136, 512),
+            nn.Dropout(0.2),
+
+            nn.ReLU(),
+            # NoisyFactorizedLinear(512, 1),
             nn.Linear(512, 1)
         )
-        self.actor = nn.Sequential(
-            NoisyFactorizedLinear(512, 3),
-            nn.Softmax(dim=-1)
-        )
+
 
     def forward(self, x):
         x = self.features(x)
-        actor = self.actor(x)
-        value = self.value(x)
-        return actor,value
+        x = torch.flatten(x,1)
+        advantage = self.advantage(x)
+        value     = self.value(x)
+        return value + advantage  - advantage.mean()
 
     def get_weights(self):
         return dict_to_cpu(self.state_dict())

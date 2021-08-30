@@ -1,9 +1,6 @@
 import copy
 import ray
 import torch
-import models
-import os
-
 
 @ray.remote
 class SharedStorage:
@@ -13,7 +10,6 @@ class SharedStorage:
 
     def save_checkpoint(self):
         torch.save(self.current_checkpoint,self.path)
-        # print('model_save!!!!')
     
     def get_checkpoint(self):
         return copy.deepcopy(self.current_checkpoint)
@@ -33,5 +29,3 @@ class SharedStorage:
             self.current_checkpoint.update(keys)
         else:
             raise TypeError
-
-
