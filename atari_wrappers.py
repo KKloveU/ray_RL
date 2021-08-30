@@ -3,6 +3,7 @@ from collections import deque
 import gym
 from gym import spaces
 import cv2
+import torch
 cv2.ocl.setUseOpenCL(False)
 
 
@@ -226,8 +227,8 @@ class FrameStack(gym.Wrapper):
         self.k = k
         self.frames = deque([], maxlen=k)
         shp = env.observation_space.shape
-        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[:-1] + (shp[-1] * k,)), dtype=env.observation_space.dtype)
-
+        # self.observation_space = spaces.Box(low=0, high=255, shape=(shp[:-1] + (shp[-1] * k,)), dtype=env.observation_space.dtype)
+        self.observation_space = spaces.Box(low=0, high=255, shape=((shp[0] * k,) + shp[1:]), dtype=env.observation_space.dtype)
     def reset(self):
         ob = self.env.reset()
         for _ in range(self.k):
@@ -241,7 +242,9 @@ class FrameStack(gym.Wrapper):
 
     def _get_ob(self):
         assert len(self.frames) == self.k
-        return LazyFrames(list(self.frames))
+        frame=np.concatenate(self.frames, axis=0)
+        return torch.FloatTensor(frame)
+        # return LazyFrames(list(self.frames))
 
 class ScaledFloatFrame(gym.ObservationWrapper):
     def __init__(self, env):
@@ -265,7 +268,7 @@ class LazyFrames(object):
 
     def _force(self):
         if self._out is None:
-            self._out = np.concatenate(self._frames, axis=-1)
+            self._out = np.concatenate(self._frames, axis=0)
             self._frames = None
         return self._out
 
@@ -307,6 +310,38 @@ def wrap_deepmind(env, episode_life=False, clip_rewards=False, frame_stack=False
         env = ScaledFloatFrame(env)
     if clip_rewards:
         env = ClipRewardEnv(env)
+
+    env = TransposeImage(env, op=[2, 0, 1])
+
     if frame_stack:
         env = FrameStack(env, 4)
+    
     return env
+
+class TransposeObs(gym.ObservationWrapper):
+    def __init__(self, env=None):
+        """
+        Transpose observation space (base class)
+        """
+        super(TransposeObs, self).__init__(env)
+
+
+class TransposeImage(TransposeObs):
+    def __init__(self, env=None, op=[2, 0, 1]):
+        """
+        Transpose observation space for images
+        """
+        super(TransposeImage, self).__init__(env)
+        assert len(op) == 3, "Error: Operation, " + str(op) + ", must be dim3"
+        self.op = op
+        obs_shape = self.observation_space.shape
+        self.observation_space = gym.spaces.Box(
+            self.observation_space.low[0, 0, 0],
+            self.observation_space.high[0, 0, 0], [
+                obs_shape[self.op[0]], obs_shape[self.op[1]],
+                obs_shape[self.op[2]]
+            ],
+            dtype=self.observation_space.dtype)
+
+    def observation(self, ob):
+        return ob.transpose(self.op[0], self.op[1], self.op[2])
