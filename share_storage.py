@@ -3,13 +3,17 @@ import ray
 import torch
 import models
 import os
-
+from collections import deque
+import numpy as np
 
 @ray.remote
 class SharedStorage:
     def __init__(self,checkpoint) -> None:
         self.current_checkpoint=copy.deepcopy(checkpoint)
         self.path='./model_checkpoint/'+self.current_checkpoint["game"]+'.model'
+        self.queue=deque(maxlen=10)
+        with open('log/log.txt','w') as file:
+            pass
 
     def save_checkpoint(self):
         torch.save(self.current_checkpoint,self.path)
@@ -34,4 +38,8 @@ class SharedStorage:
         else:
             raise TypeError
 
+    def save_epr(self, epr):
+        self.queue.append(epr)
+        with open('log/log.txt','a') as file:
+            file.write(str(np.mean(self.queue))+'\n')
 

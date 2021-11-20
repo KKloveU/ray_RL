@@ -1,5 +1,4 @@
 import os
-
 from ray import worker
 from rollout import Player, Rollout
 from server import Server
@@ -32,29 +31,29 @@ class ModelLoader:
 if __name__=="__main__":
     ray.init()
     checkpoint={
+        "lr":2e-4,
         "game":game_name,
-        "num_workers":8,
-        "num_cluster":2,
+        "num_cluster":1,
+        "num_workers":16,
         "num_reuse":3,
-        "weights":None,
-        "lr":2.5e-4,
-        "terminate":False,
-        "start_training":False,
-        "training_step":0,
-        "max_training_step":2e3,
+        "num_sample":16,
+        "memory_size":100, 
+        "model_save_iter":1,
         "len_episode":128,
-        "max_len_episode":2e3,
-        "memory_size":10, 
-        "batch_size":256,
-        "epsilon":0.2,
+        "mini_batch":2,
+        "weights":None,
         "gamma":0.99,
+        "epsilon":0.2,
         "gae_lambda":0.95,
+        "terminate":False,
+        "training_step":0,
+        "max_len_step":2e4,
         "entropy_coef":1e-2,
         "value_loss_coef":0.5,
-        "model_save_iter":1,
-        "tau":0.002,
-        "max_len_step":2e4,
-        "action_list":[0,2,3]
+        "action_list":[0,2,3],
+        "start_training":False,
+        "max_len_episode":2e3,
+        "max_training_step":2e3,
     }
 
     # if os.path.exists(path_file):
@@ -78,8 +77,7 @@ if __name__=="__main__":
     # init nodes
     share_storage_worker = share_storage.SharedStorage.remote(checkpoint)
 
-    replay_buffer_worker = [replay_buffer.ReplayBuffer.remote(checkpoint, share_storage_worker) for _ in range(2)]
-    
+    replay_buffer_worker = [replay_buffer.ReplayBuffer.remote(checkpoint, share_storage_worker) for _ in range(1)]
     
     training_worker=trainer.Trainer.options(num_cpus=1,num_gpus=0.1).remote(checkpoint,share_storage_worker,replay_buffer_worker)
 
